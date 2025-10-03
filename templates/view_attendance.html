@@ -1,12 +1,53 @@
-<h2>Attendance Records</h2>
-<table border="1">
-<tr><th>Name</th><th>USN</th><th>Date</th><th>Status</th></tr>
-{% for row in records %}
-<tr>
-<td>{{ row[0] }}</td>
-<td>{{ row[1] }}</td>
-<td>{{ row[2] }}</td>
-<td>{{ row[3] }}</td>
-</tr>
-{% endfor %}
-</table>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>View Attendance</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 80%;
+            margin: auto;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        h1 {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Attendance Records</h1>
+
+    {% if records %}
+    <table>
+        <tr>
+            <th>Student Name</th>
+            <th>USN</th>
+            <th>Date</th>
+            <th>Status</th>
+        </tr>
+        {% for row in records %}
+        <tr>
+            <td>{{ row[0] }}</td>
+            <td>{{ row[1] }}</td>
+            <td>{{ row[2] }}</td>
+            <td>{{ row[3] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p style="text-align:center; color:red;">No attendance records found.</p>
+    {% endif %}
+
+    <br>
+    <div style="text-align:center;">
+        <a href="/">Back to Home</a>
+    </div>
+</body>
+</html>
