@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Students</title>
+</head>
+<body>
+    <h1>Student List</h1>
+    <a href="{{ url_for('add_student') }}">➕ Add Student</a>
+    <br><br>
+    <table border="1" cellpadding="5">
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>USN</th>
+            <th>QR Code</th>
+            <th>Action</th>
+        </tr>
+        {% for s in students %}
+        <tr>
+            <td>{{ s[0] }}</td>
+            <td>{{ s[1] }}</td>
+            <td>{{ s[2] }}</td>
+            <td>
+                {% if s[3] %}
+                <img src="{{ url_for('static', filename=s[2] + '.png') }}" width="80">
+                {% else %}
+                No QR
+                {% endif %}
+            </td>
+            <td>
+                <!-- Instead of direct delete, link to confirmation page -->
+                <a href="{{ url_for('delete_student', student_id=s[0]) }}">🗑 Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

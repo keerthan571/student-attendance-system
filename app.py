@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, url_for
 import oracledb, qrcode, os
 
 app = Flask(__name__)
@@ -9,7 +9,7 @@ if not os.path.exists("static"):
 
 # DB connection
 def get_db():
-    dsn = oracledb.makedsn("localhost", 1521, service_name="XEPDB1")  # Use your PDB
+    dsn = oracledb.makedsn("localhost", 1521, service_name="XEPDB1")  # Use your PDB or XE
     conn = oracledb.connect(
         user="attendance_user",
         password="attendance_pass",
@@ -17,12 +17,16 @@ def get_db():
     )
     return conn
 
+# -------------------------
 # Home page
+# -------------------------
 @app.route("/")
 def index():
     return render_template("index.html")
 
+# -------------------------
 # Add student
+# -------------------------
 @app.route("/add_student", methods=["GET", "POST"])
 def add_student():
     if request.method == "POST":
@@ -40,7 +44,7 @@ def add_student():
             conn.close()
             return "Error: USN already exists!"
 
-        # Insert student using sequence
+        # Insert student (assuming you created student_seq in Oracle DB)
         cur.execute(
             "INSERT INTO students (student_id, name, usn, qr_code) VALUES (student_seq.NEXTVAL, :1, :2, NULL)",
             (name, usn)
@@ -58,11 +62,35 @@ def add_student():
         conn.commit()
 
         conn.close()
-        return redirect("/")
+        return redirect("/students")
 
     return render_template("add_student.html")
 
+# -------------------------
+# View all students + delete option
+# -------------------------
+@app.route("/students")
+def students():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT student_id, name, usn, qr_code FROM students")
+    students = cur.fetchall()
+    conn.close()
+    return render_template("students.html", students=students)
+
+# Delete student by ID
+@app.route("/delete_student/<int:student_id>")
+def delete_student(student_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM students WHERE student_id = :1", [student_id])
+    conn.commit()
+    conn.close()
+    return redirect(url_for("students"))
+
+# -------------------------
 # View attendance
+# -------------------------
 @app.route("/attendance")
 def view_attendance():
     conn = get_db()
@@ -76,5 +104,8 @@ def view_attendance():
     conn.close()
     return render_template("view_attendance.html", records=records)
 
+# -------------------------
+# Run the Flask app
+# -------------------------
 if __name__ == "__main__":
     app.run(debug=True)
