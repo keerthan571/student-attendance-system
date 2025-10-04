@@ -1,13 +1,38 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Attendance System</title>
+    <title>Student Attendance Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        h1 {
+            color: #333;
+        }
+        .btn {
+            display: inline-block;
+            margin: 20px;
+            padding: 15px 30px;
+            font-size: 18px;
+            text-decoration: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
 </head>
 <body>
-    <h1>Welcome to Attendance System</h1>
-    <ul>
-        <li><a href="/add_student">Add Student</a></li>
-        <li><a href="/attendance">View Attendance</a></li>
-    </ul>
+    <h1>Student Attendance Management System</h1>
+
+    <a class="btn" href="{{ url_for('add_student') }}">➕ Add Student</a>
+    <a class="btn" href="{{ url_for('students') }}">👥 View Students</a>
+    <a class="btn" href="{{ url_for('view_attendance') }}">📊 View Attendance</a>
+    <a class="btn" href="{{ url_for('mark_attendance_multi') }}">📷 Mark Attendance (Multi)</a>
 </body>
 </html>
