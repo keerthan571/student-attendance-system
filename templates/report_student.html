@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Attendance Report - {{ usn }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container mt-4">
+    <h2>Attendance Report for {{ usn }}</h2>
+    <a href="{{ url_for('report_student_csv', usn=usn) }}" class="btn btn-success mb-3">Download CSV</a>
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for idx, record in enumerate(records, start=1) %}
+            <tr>
+                <td>{{ idx }}</td>
+                <td>{{ record[0]|strftime("%Y-%m-%d") }}</td>
+                <td>{{ record[1] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{{ url_for('index') }}" class="btn btn-primary mt-3">Back Home</a>
+</div>
+</body>
+</html>

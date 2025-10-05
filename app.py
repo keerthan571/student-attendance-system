@@ -1,18 +1,29 @@
 import os
 import ctypes
+from datetime import datetime, timedelta
+import io
+import csv
 
-# Step 1: Load DLLs manually BEFORE importing pyzbar
+# -------------------------
+# Load DLLs for pyzbar (ZBar)
+# -------------------------
 dll_folder = r"E:\studentattendanceqr\student_attendance\venv\dlls"
 ctypes.WinDLL(os.path.join(dll_folder, "libiconv.dll"))
 ctypes.WinDLL(os.path.join(dll_folder, "libzbar-64.dll"))
 
-# Step 2: Now safe to import pyzbar
+# -------------------------
+# Import Libraries
+# -------------------------
+from flask import Flask, render_template, request, redirect, url_for, send_file
 from pyzbar.pyzbar import decode
-from flask import Flask, render_template, request, redirect, url_for
-import oracledb, qrcode
 from PIL import Image
 import cv2
+import oracledb
+import qrcode
 
+# -------------------------
+# Flask App
+# -------------------------
 app = Flask(__name__)
 
 # Ensure static folder exists
@@ -24,12 +35,7 @@ if not os.path.exists("static"):
 # -------------------------
 def get_db():
     dsn = oracledb.makedsn("localhost", 1521, service_name="XEPDB1")
-    conn = oracledb.connect(
-        user="attendance_user",
-        password="attendance_pass",
-        dsn=dsn
-    )
-    return conn
+    return oracledb.connect(user="attendance_user", password="attendance_pass", dsn=dsn)
 
 # -------------------------
 # Home Page
@@ -61,6 +67,7 @@ def add_student():
         )
         conn.commit()
 
+        # Generate QR code
         qr_data = f"{usn}"
         qr_img = qrcode.make(qr_data)
         qr_filename = f"{usn}.png"
@@ -75,7 +82,7 @@ def add_student():
     return render_template("add_student.html")
 
 # -------------------------
-# View All Students + Delete
+# View Students + Delete
 # -------------------------
 @app.route("/students")
 def students():
@@ -103,16 +110,17 @@ def view_attendance():
     conn = get_db()
     cur = conn.cursor()
     cur.execute("""
-        SELECT s.name, s.usn, a.date_attended, a.status
+        SELECT s.name, s.usn, a.date_attended, NVL(a.status,'Absent') AS status
         FROM students s
         LEFT JOIN attendance1 a ON s.student_id = a.student_id
+        ORDER BY s.name, a.date_attended
     """)
     records = cur.fetchall()
     conn.close()
     return render_template("view_attendance.html", records=records)
 
 # -------------------------
-# Mark Attendance
+# Mark Attendance via Webcam (QR Scan)
 # -------------------------
 @app.route("/mark_attendance_multi")
 def mark_attendance_multi():
@@ -165,13 +173,109 @@ def mark_attendance_multi():
     return f"Attendance session finished. {len(marked_usn)} students marked."
 
 # -------------------------
-# Test QR decoding route
+# Test QR decoding
 # -------------------------
 @app.route("/test_qr")
 def test_qr():
     img = Image.open("test_qr.png")
     result = decode(img)
     return str(result)
+
+# -------------------------
+# Reports
+# -------------------------
+def fetch_attendance(start_date=None, end_date=None):
+    conn = get_db()
+    cur = conn.cursor()
+    if start_date and end_date:
+        cur.execute("""
+            SELECT s.name, s.usn, a.date_attended, NVL(a.status,'Absent') AS status
+            FROM students s
+            LEFT JOIN attendance1 a
+            ON s.student_id = a.student_id
+            AND TRUNC(a.date_attended) BETWEEN :start_dt AND :end_dt
+            ORDER BY s.name, a.date_attended
+        """, {"start_dt": start_date, "end_dt": end_date})
+    else:
+        cur.execute("""
+            SELECT s.name, s.usn, NVL(a.status,'Absent') AS status, a.date_attended
+            FROM students s
+            LEFT JOIN attendance1 a ON s.student_id = a.student_id
+            ORDER BY s.name, a.date_attended
+        """)
+    records = cur.fetchall()
+    conn.close()
+    return records
+
+
+@app.route("/report/daily")
+def report_daily():
+    today = datetime.today().date()
+    records = fetch_attendance(today, today)
+    return render_template("report.html", records=records, title="Daily Attendance")
+
+@app.route("/report/weekly")
+def report_weekly():
+    today = datetime.today().date()
+    start = today - timedelta(days=7)
+    records = fetch_attendance(start, today)
+    return render_template("report.html", records=records, title="Weekly Attendance")
+
+@app.route("/report/monthly")
+def report_monthly():
+    today = datetime.today().date()
+    start = today.replace(day=1)
+    records = fetch_attendance(start, today)
+    return render_template("report.html", records=records, title="Monthly Attendance")
+
+@app.route("/report/student/<usn>")
+def report_student(usn):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT date_attended, NVL(status,'Absent') AS status
+        FROM attendance1 a
+        JOIN students s ON s.student_id = a.student_id
+        WHERE s.usn = :usn
+        ORDER BY date_attended
+    """, {"usn": usn})
+    records = cur.fetchall()
+    conn.close()
+    return render_template("report_student.html", records=records, usn=usn)
+
+# -------------------------
+# CSV Export Routes
+# -------------------------
+def export_csv(records, headers, filename):
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(headers)
+    writer.writerows(records)
+    output.seek(0)
+    return send_file(io.BytesIO(output.getvalue().encode()),
+                     mimetype="text/csv",
+                     as_attachment=True,
+                     download_name=filename)
+
+@app.route("/report/daily/csv")
+def report_daily_csv():
+    records = fetch_attendance(datetime.today().date(), datetime.today().date())
+    return export_csv(records, ["Name", "USN", "Status", "Date"], f"daily_attendance_{datetime.today().date()}.csv")
+
+@app.route("/report/student/<usn>/csv")
+def report_student_csv(usn):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT date_attended, NVL(status,'Absent') AS status
+        FROM attendance1 a
+        JOIN students s ON s.student_id = a.student_id
+        WHERE s.usn = :usn
+        ORDER BY date_attended
+    """, {"usn": usn})
+    records = cur.fetchall()
+    conn.close()
+    return export_csv(records, ["Date", "Status"], f"{usn}_attendance.csv")
 
 # -------------------------
 # Run Flask App

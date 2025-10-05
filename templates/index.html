@@ -1,38 +1,47 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Student Attendance Management</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin-top: 50px;
-        }
-        h1 {
-            color: #333;
-        }
-        .btn {
-            display: inline-block;
-            margin: 20px;
-            padding: 15px 30px;
-            font-size: 18px;
-            text-decoration: none;
-            background-color: #007bff;
-            color: white;
-            border-radius: 8px;
-            transition: 0.3s;
-        }
-        .btn:hover {
-            background-color: #0056b3;
-        }
-    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
 </head>
 <body>
-    <h1>Student Attendance Management System</h1>
+<div class="container mt-5">
+    <h1 class="mb-4">📚 Student Attendance Management</h1>
 
-    <a class="btn" href="{{ url_for('add_student') }}">➕ Add Student</a>
-    <a class="btn" href="{{ url_for('students') }}">👥 View Students</a>
-    <a class="btn" href="{{ url_for('view_attendance') }}">📊 View Attendance</a>
-    <a class="btn" href="{{ url_for('mark_attendance_multi') }}">📷 Mark Attendance (Multi)</a>
+    <div class="list-group">
+        <!-- Student Management -->
+        <a href="{{ url_for('add_student') }}" class="list-group-item list-group-item-action">
+            ➕ Add Student
+        </a>
+        <a href="{{ url_for('students') }}" class="list-group-item list-group-item-action">
+            👥 View All Students
+        </a>
+
+        <!-- Attendance -->
+        <a href="{{ url_for('mark_attendance_multi') }}" class="list-group-item list-group-item-action">
+            📷 Mark Attendance (QR Scan)
+        </a>
+        <a href="{{ url_for('view_attendance') }}" class="list-group-item list-group-item-action">
+            📋 View Attendance
+        </a>
+
+        <!-- Reports -->
+        <a href="{{ url_for('report_daily') }}" class="list-group-item list-group-item-action">
+            📊 Daily Attendance Report
+        </a>
+        <a href="{{ url_for('report_weekly') }}" class="list-group-item list-group-item-action">
+            📊 Weekly Attendance Report
+        </a>
+        <a href="{{ url_for('report_monthly') }}" class="list-group-item list-group-item-action">
+            📊 Monthly Attendance Report
+        </a>
+        <a href="{{ url_for('students') }}" class="list-group-item list-group-item-action">
+            🔍 Individual Student Report
+        </a>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
