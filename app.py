@@ -1,9 +1,21 @@
+import os
+import ctypes
+
+# Step 1: Load DLLs manually BEFORE importing pyzbar
+dll_folder = r"E:\studentattendanceqr\student_attendance\venv\dlls"
+ctypes.WinDLL(os.path.join(dll_folder, "libiconv.dll"))
+ctypes.WinDLL(os.path.join(dll_folder, "libzbar-64.dll"))
+
+# Step 2: Now safe to import pyzbar
+from pyzbar.pyzbar import decode
 from flask import Flask, render_template, request, redirect, url_for
-import oracledb, qrcode, os
+import oracledb, qrcode
+from PIL import Image
+import cv2
 
 app = Flask(__name__)
 
-# Ensure static folder exists for QR codes
+# Ensure static folder exists
 if not os.path.exists("static"):
     os.makedirs("static")
 
@@ -11,7 +23,6 @@ if not os.path.exists("static"):
 # Database Connection
 # -------------------------
 def get_db():
-    # ⚠️ Change service_name if your Oracle is 11g XE → use "XE"
     dsn = oracledb.makedsn("localhost", 1521, service_name="XEPDB1")
     conn = oracledb.connect(
         user="attendance_user",
@@ -39,35 +50,25 @@ def add_student():
         conn = get_db()
         cur = conn.cursor()
 
-        # Check if USN already exists
         cur.execute("SELECT COUNT(*) FROM students WHERE usn=:1", (usn,))
-        count = cur.fetchone()[0]
-
-        if count > 0:
+        if cur.fetchone()[0] > 0:
             conn.close()
             return "❌ Error: USN already exists!"
 
-        # Insert student (requires student_seq created in Oracle)
         cur.execute(
-            """
-            INSERT INTO students (student_id, name, usn, qr_code) 
-            VALUES (student_seq.NEXTVAL, :1, :2, NULL)
-            """,
+            "INSERT INTO students (student_id, name, usn, qr_code) VALUES (student_seq.NEXTVAL, :1, :2, NULL)",
             (name, usn)
         )
         conn.commit()
 
-        # Generate QR Code
         qr_data = f"{usn}"
         qr_img = qrcode.make(qr_data)
         qr_filename = f"{usn}.png"
         qr_path = os.path.join("static", qr_filename)
         qr_img.save(qr_path)
 
-        # Update student with QR code filename (not full path)
         cur.execute("UPDATE students SET qr_code=:1 WHERE usn=:2", (qr_filename, usn))
         conn.commit()
-
         conn.close()
         return redirect(url_for("students"))
 
@@ -109,16 +110,15 @@ def view_attendance():
     records = cur.fetchall()
     conn.close()
     return render_template("view_attendance.html", records=records)
+
+# -------------------------
 # Mark Attendance
+# -------------------------
 @app.route("/mark_attendance_multi")
 def mark_attendance_multi():
-    import cv2
-    from pyzbar.pyzbar import decode
-
     conn = get_db()
     cur = conn.cursor()
-
-    marked_usn = set()  # Track already marked in session
+    marked_usn = set()
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
@@ -133,22 +133,17 @@ def mark_attendance_multi():
 
         for barcode in decode(frame):
             usn = barcode.data.decode('utf-8')
-
             if usn not in marked_usn:
-                # Get student_id
                 cur.execute("SELECT student_id FROM students WHERE usn=:1", [usn])
                 student = cur.fetchone()
                 if student:
                     student_id = student[0]
 
-                    # Check if already marked today
                     cur.execute("""
                         SELECT COUNT(*) FROM attendance1
                         WHERE student_id=:1 AND TRUNC(date_attended)=TRUNC(SYSDATE)
                     """, [student_id])
-                    already_marked = cur.fetchone()[0]
-
-                    if already_marked == 0:
+                    if cur.fetchone()[0] == 0:
                         cur.execute("INSERT INTO attendance1 (student_id) VALUES (:1)", [student_id])
                         conn.commit()
                         print(f"✅ Attendance marked for {usn}")
@@ -156,13 +151,11 @@ def mark_attendance_multi():
                     else:
                         print(f"ℹ️ Already marked for {usn}")
 
-            # Draw rectangle around QR
             x, y, w, h = barcode.rect.left, barcode.rect.top, barcode.rect.width, barcode.rect.height
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
             cv2.putText(frame, usn, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
         cv2.imshow("Scan QR - Press 'q' to Quit", frame)
-
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
@@ -170,6 +163,15 @@ def mark_attendance_multi():
     cv2.destroyAllWindows()
     conn.close()
     return f"Attendance session finished. {len(marked_usn)} students marked."
+
+# -------------------------
+# Test QR decoding route
+# -------------------------
+@app.route("/test_qr")
+def test_qr():
+    img = Image.open("test_qr.png")
+    result = decode(img)
+    return str(result)
 
 # -------------------------
 # Run Flask App

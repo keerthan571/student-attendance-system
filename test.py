@@ -1,3 +1,5 @@
-
+from pyzbar.pyzbar import decode
 from PIL import Image
-print("Pillow is working!")
+
+img = Image.open("test_qr.png")
+print(decode(img))
