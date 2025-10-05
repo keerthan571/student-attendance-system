@@ -8,6 +8,7 @@
 <body>
 <div class="container mt-5">
     <h2>{{ title }}</h2>
+    <p><a href="{{ url_for('index') }}">🏠 Back to Home</a></p>
     <a href="{{ url_for('report_daily_csv') }}" class="btn btn-primary mb-3">Export CSV</a>
     <table class="table table-bordered">
         <thead>

@@ -238,10 +238,24 @@ def report_student(usn):
         JOIN students s ON s.student_id = a.student_id
         WHERE s.usn = :usn
         ORDER BY date_attended
-    """, {"usn": usn})
+    """, [usn])
     records = cur.fetchall()
     conn.close()
-    return render_template("report_student.html", records=records, usn=usn)
+
+    # Convert dates to string in Python
+    formatted_records = []
+    for rec in records:
+        date_str = rec[0].strftime("%Y-%m-%d") if rec[0] else ""
+        formatted_records.append((date_str, rec[1]))
+
+    return render_template("report_student.html", records=formatted_records, usn=usn)
+
+
+    # Format dates as strings
+    formatted_records = [(r[0].strftime("%Y-%m-%d") if r[0] else "", r[1]) for r in records]
+
+    return render_template("report_student.html", records=formatted_records, usn=usn)
+
 
 # -------------------------
 # CSV Export Routes
